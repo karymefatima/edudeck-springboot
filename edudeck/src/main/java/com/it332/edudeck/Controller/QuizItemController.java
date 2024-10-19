@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.it332.edudeck.Entity.Flashcard;
 import com.it332.edudeck.Entity.QuizItem;
 import com.it332.edudeck.Service.QuizItemService;
 
@@ -42,5 +43,10 @@ public class QuizItemController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/quiz/{quizId}")
+    public List<QuizItem> getQuizItemsByQuizId(@PathVariable int quizId) {
+        return quizItemService.getQuizItemsByQuizId(quizId);
     }
 }
