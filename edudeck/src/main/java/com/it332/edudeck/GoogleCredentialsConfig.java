@@ -1,35 +1,41 @@
 package com.it332.edudeck;
-import org.springframework.beans.factory.annotation.Value;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.Base64;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Configuration
 public class GoogleCredentialsConfig {
 
-    @Value("${google.application.credentials}")
-    private String credentials;
+    @Bean
+    public GoogleCredentials googleCredentials() throws Exception {
+        // Load the JSON credentials from the environment variable
+        String googleCredentialsJson = System.getenv("GOOGLE_CREDENTIALS");
 
-    @PostConstruct
-    public void init() throws Exception {
-        // Get the base64 string from the environment variable
-        String base64Credentials = System.getenv("GOOGLE_APPLICATION_CREDENTIALS_BASE64");
-
-        if (base64Credentials != null) {
-            // Decode the base64 string
-            byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
-
-            // Write the credentials to a temporary file
-            File tempFile = new File(credentials);
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.write(decodedBytes);
-            }
-
-            // Set the environment variable for Google APIs to use this file
-            System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", tempFile.getAbsolutePath());
+        // Check if the environment variable is null or empty
+        if (googleCredentialsJson == null || googleCredentialsJson.isEmpty()) {
+            throw new IllegalArgumentException("GOOGLE_CREDENTIALS environment variable is not set or is empty");
         }
+
+        // Parse the JSON string into a Map
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> credentialsMap = objectMapper.readValue(googleCredentialsJson, Map.class);
+
+        // Replace escaped newlines in the private key
+        String privateKey = (String) credentialsMap.get("private_key");
+        privateKey = privateKey.replace("\\n", "\n");
+        credentialsMap.put("private_key", privateKey);
+
+        // Convert the credentials Map back to a JSON string and create GoogleCredentials
+        String credentialsString = objectMapper.writeValueAsString(credentialsMap);
+        ByteArrayInputStream credentialsStream = new ByteArrayInputStream(credentialsString.getBytes(StandardCharsets.UTF_8));
+
+        return ServiceAccountCredentials.fromStream(credentialsStream);
     }
 }
