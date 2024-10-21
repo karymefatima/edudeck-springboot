@@ -32,7 +32,7 @@ public class StripeCustomerPortalController {
         // Create a session for Stripe's Customer Portal
         SessionCreateParams params = SessionCreateParams.builder()
                 .setCustomer(customer.getId())
-                .setReturnUrl("http://localhost:3000/pricing")  // URL to redirect after managing subscription
+                .setReturnUrl("https://edudeck.vercel.app/pricing")  // URL to redirect after managing subscription
                 .build();
 
         Session session = Session.create(params);

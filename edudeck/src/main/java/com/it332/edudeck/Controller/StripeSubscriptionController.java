@@ -1,4 +1,5 @@
 package com.it332.edudeck.Controller;
+
 import com.stripe.Stripe;
 import com.stripe.model.Customer;
 import com.stripe.param.CustomerListParams;
@@ -9,6 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -17,6 +22,7 @@ public class StripeSubscriptionController {
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
+
     @PostMapping("/subscription")
     public SubscriptionResponse getSubscription(@RequestBody SubscriptionRequest request) {
         Stripe.apiKey = stripeApiKey; // Your Stripe secret key
@@ -31,7 +37,7 @@ public class StripeSubscriptionController {
             List<Customer> customers = Customer.list(customerParams).getData();
 
             if (customers.isEmpty()) {
-                return new SubscriptionResponse(false, null); // No customer found with this email
+                return new SubscriptionResponse(false, null, null); // No customer found with this email
             }
 
             // Fetch the first customer (assume one email per customer)
@@ -44,21 +50,33 @@ public class StripeSubscriptionController {
                     .build();
 
             List<com.stripe.model.Subscription> subscriptions = com.stripe.model.Subscription.list(subscriptionParams).getData();
-            // Fully qualified reference to Stripe's Subscription
 
             if (subscriptions.isEmpty()) {
-                return new SubscriptionResponse(false, null); // No active subscriptions
+                return new SubscriptionResponse(false, null, null); // No active subscriptions
             }
 
             // Get the first subscription (if present)
-            com.stripe.model.Subscription subscription = subscriptions.get(0); // Use Stripe's Subscription class
+            com.stripe.model.Subscription subscription = subscriptions.get(0);
 
-            // Return active subscription status and next billing date
-            return new SubscriptionResponse(true, subscription.getCurrentPeriodEnd());
+            // Get the next billing date as Unix timestamp
+            Long nextBillingDate = subscription.getCurrentPeriodEnd();
+
+            // Convert Unix timestamp to human-readable format
+            String nextBillingDateFormatted = convertUnixToReadableDate(nextBillingDate);
+
+            // Return active subscription status, next billing date, and formatted date
+            return new SubscriptionResponse(true, nextBillingDate, nextBillingDateFormatted);
         } catch (Exception e) {
             e.printStackTrace();
-            return new SubscriptionResponse(false, null); // In case of error
+            return new SubscriptionResponse(false, null, null); // In case of error
         }
+    }
+
+    // Convert Unix timestamp to human-readable format
+    private String convertUnixToReadableDate(Long unixTimestamp) {
+        if (unixTimestamp == null) return null;
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(unixTimestamp), ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     // Define the request and response DTOs
@@ -79,11 +97,13 @@ public class StripeSubscriptionController {
     public static class SubscriptionResponse {
         private boolean active;
         private Long nextBillingDate;
+        private String nextBillingDateFormatted;
 
         // Constructor
-        public SubscriptionResponse(boolean active, Long nextBillingDate) {
+        public SubscriptionResponse(boolean active, Long nextBillingDate, String nextBillingDateFormatted) {
             this.active = active;
             this.nextBillingDate = nextBillingDate;
+            this.nextBillingDateFormatted = nextBillingDateFormatted;
         }
 
         // Getter for active
@@ -91,19 +111,14 @@ public class StripeSubscriptionController {
             return active;
         }
 
-        // Setter for active
-        public void setActive(boolean active) {
-            this.active = active;
-        }
-
         // Getter for nextBillingDate
         public Long getNextBillingDate() {
             return nextBillingDate;
         }
 
-        // Setter for nextBillingDate
-        public void setNextBillingDate(Long nextBillingDate) {
-            this.nextBillingDate = nextBillingDate;
+        // Getter for nextBillingDateFormatted
+        public String getNextBillingDateFormatted() {
+            return nextBillingDateFormatted;
         }
     }
 }

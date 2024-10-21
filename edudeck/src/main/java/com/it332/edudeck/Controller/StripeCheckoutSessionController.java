@@ -31,8 +31,8 @@ public class StripeCheckoutSessionController {
         try {
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setSuccessUrl("http://localhost:3000/pricing?success=true")
-                    .setCancelUrl("http://localhost:3000/pricing?success=false")// SET THE DEFAULT URL WHEN DEPLOYED
+                    .setSuccessUrl("https://edudeck.vercel.app/pricing?success=true")
+                    .setCancelUrl("https://edudeck.vercel.app/pricing?success=false")// SET THE DEFAULT URL WHEN DEPLOYED
                     .setCustomerEmail(email) // The email of the customer
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
