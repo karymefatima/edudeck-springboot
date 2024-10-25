@@ -17,9 +17,9 @@ public class FlashcardController {
     @Autowired
     private FlashcardService flashcardService;
 
-    @PostMapping("/createFlashcard")
-    public ResponseEntity<Flashcard> createFlashcard(@RequestBody Flashcard flashcard) {
-        Flashcard createdFlashcard = flashcardService.createFlashcard(flashcard.getQuestion(), flashcard.getAnswer(), flashcard.getFlashcardDeck());
+    @PostMapping("/createFlashcard/{deckId}")
+    public ResponseEntity<Flashcard> createFlashcardForDeck(@PathVariable int deckId, @RequestBody Flashcard flashcard) {
+        Flashcard createdFlashcard = flashcardService.createFlashcard(flashcard.getQuestion(), flashcard.getAnswer(), deckId);
         return ResponseEntity.ok(createdFlashcard);
     }
 

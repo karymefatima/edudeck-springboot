@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import com.it332.edudeck.ResourceNotFoundException;
 import com.it332.edudeck.Entity.FlashcardDeck;
 import com.it332.edudeck.Entity.Flashcard;
+import com.it332.edudeck.Repository.FlashcardDeckRepository;
 import com.it332.edudeck.Repository.FlashcardRepository;
 
 import java.util.List;
@@ -18,7 +19,13 @@ public class FlashcardService {
     @Autowired
     private FlashcardRepository flashcardRepository;
 
-    public Flashcard createFlashcard(String question, String answer, FlashcardDeck flashcardDeck) {
+    @Autowired
+    private FlashcardDeckRepository flashcardDeckRepository;
+
+    public Flashcard createFlashcard(String question, String answer, int deckId) {
+        FlashcardDeck flashcardDeck = flashcardDeckRepository.findById(deckId)
+                .orElseThrow(() -> new RuntimeException("Deck not found"));
+
         Flashcard flashcard = new Flashcard(question, answer, flashcardDeck);
         return flashcardRepository.save(flashcard);
     }
