@@ -17,9 +17,16 @@ public class QuizItemController {
     @Autowired
     private QuizItemService quizItemService;
 
-    @PostMapping("/create")
-    public ResponseEntity<QuizItem> createQuizItem(@RequestBody QuizItem quizItem) {
-        QuizItem createdQuizItem = quizItemService.createQuizItem(quizItem);
+    @PostMapping("/createQuizItem/{quizId}")
+    public ResponseEntity<QuizItem> createQuizItemForQuiz(@PathVariable int quizId, @RequestBody QuizItem quizItem) {
+        QuizItem createdQuizItem = quizItemService.createQuizItem(
+            quizItem.getQuestion(),
+            quizItem.getOptions(),
+            quizItem.getCorrectAnswer(),
+            quizItem.getQuestionType(),
+            quizItem.getUserAnswer(),
+            quizId
+        );
         return ResponseEntity.ok(createdQuizItem);
     }
 

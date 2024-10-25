@@ -29,6 +29,7 @@ public class QuizItem {
     private String correctAnswer;
     private String userAnswer;
     private boolean isDeleted;
+    private String questionType;
 
     @ManyToOne
     @JoinColumn(name = "quiz_id", nullable = false)
@@ -48,12 +49,13 @@ public class QuizItem {
 
     
 
-    public QuizItem(int quizItemId, String question, List<String> options, String correctAnswer,
+    public QuizItem(int quizItemId, String question, List<String> options, String correctAnswer, String questionType,
                     String userAnswer, boolean isDeleted, Quiz quiz, List<Flashcard> flashcards) {
         this.quizItemId = quizItemId;
         this.question = question;
         this.options = options;
         this.correctAnswer = correctAnswer;
+        this.questionType = questionType;
         this.userAnswer = userAnswer;
         this.isDeleted = isDeleted;
         this.quiz = quiz;
@@ -93,6 +95,15 @@ public class QuizItem {
     public void setCorrectAnswer(String correctAnswer) {
         this.correctAnswer = correctAnswer;
     }
+
+    public String getQuestionType() {
+        return questionType;
+    }
+
+    public void setQuestionType(String questionType) {
+        this.questionType = questionType;
+    }
+
 
     public String getUserAnswer() {
         return userAnswer;
