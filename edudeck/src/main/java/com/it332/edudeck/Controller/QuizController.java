@@ -8,6 +8,7 @@ import com.it332.edudeck.Entity.Quiz;
 import com.it332.edudeck.Service.QuizService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/quizzes")
@@ -32,6 +33,17 @@ public class QuizController {
         Quiz quiz = quizService.getQuizById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found with id: " + id));
         return ResponseEntity.ok(quiz);
+    }
+
+    @PutMapping("/update/{quizId}")
+    public ResponseEntity<Quiz> updateQuiz(@PathVariable int quizId, @RequestBody Quiz newQuizDetails) {
+		return ResponseEntity.ok(quizService.updateQuiz(quizId, newQuizDetails));
+	}
+
+    @GetMapping("/average-scores/{userId}")
+    public ResponseEntity<List<Map<String, Object>>> getAverageScoresBySubject(@PathVariable int userId) {
+        List<Map<String, Object>> averageScores = quizService.getAverageScoresBySubject(userId);
+        return ResponseEntity.ok(averageScores);
     }
 
     @PutMapping("/softdelete/{id}")

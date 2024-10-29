@@ -32,6 +32,8 @@ public class Quiz {
     private Date dateCreated;
     private Date dateLastTaken;
     private boolean isDeleted;
+    private String subject;
+    private int feedback;
 
     @ManyToOne
     @JoinColumn(name = "deck_id", nullable = false)
@@ -41,12 +43,16 @@ public class Quiz {
     @JsonManagedReference // Manage serialization
     private List<QuizItem> quizItems;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     public Quiz() {
     }
 
     public Quiz(int quizId, String title, int totalQuestions, float targetScorePercentage, int passingScore,
                 int score, float scorePercentage, Date dateCreated, Date dateLastTaken, boolean isDeleted,
-                FlashcardDeck deck, List<QuizItem> quizItems) {
+                FlashcardDeck deck, User user, List<QuizItem> quizItems, String subject, int feedback) {
         this.quizId = quizId;
         this.title = title;
         this.totalQuestions = totalQuestions;
@@ -58,7 +64,10 @@ public class Quiz {
         this.dateLastTaken = dateLastTaken;
         this.isDeleted = isDeleted;
         this.deck = deck;
+        this.user = user;
         this.quizItems = quizItems;
+        this.subject = subject;
+        this.feedback = feedback;
     }
 
     public int getQuizId() {
@@ -149,6 +158,14 @@ public class Quiz {
         this.deck = deck;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     public List<QuizItem> getQuizItems() {
         return quizItems;
     }
@@ -157,5 +174,20 @@ public class Quiz {
         this.quizItems = quizItems;
     }
 
-    
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public int getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(int feedback) {
+        this.feedback = feedback;
+    }
+
 }

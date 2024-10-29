@@ -18,6 +18,9 @@ import com.it332.edudeck.Repository.FlashcardDeckRepository;
 import com.it332.edudeck.Repository.FlashcardRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,140 +29,104 @@ import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Iterator;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping
 public class GeminiFlashcardAI {
 
-    @Value("${gemini.api.url}")
-    private String geminiApiUrl;
+    @Autowired
+    private FlashcardDeckRepository flashcardDeckRepository;
 
-    @Value("${gemini.api.key}")
-    private String geminiApiKey;
-
-    private final FlashcardDeckRepository flashcardDeckRepository;
-    private final FlashcardRepository flashcardRepository;
-
-    public GeminiFlashcardAI(FlashcardDeckRepository flashcardDeckRepository, FlashcardRepository flashcardRepository) {
-        this.flashcardDeckRepository = flashcardDeckRepository;
-        this.flashcardRepository = flashcardRepository;
-    }
+    @Autowired
+    private FlashcardRepository flashcardRepository;
 
     @PostMapping("/generate-flashcards/{deckId}")
-public String generateFlashcards(@RequestBody String lessonText, @PathVariable int deckId) {
-    try {
-        // Define the system prompt
-        String systemPrompt = "You are to create flashcard pairs (question and answer, in json format if possible) " +
-                "based on the given lesson texts to help the student user review and ace his/her exams. " +
-                "Design it in a way that when the user reads the question/flashcard front, they have an idea of what's the answer/flashcard back. " +
-                "Make the answers/flashcard back easier to understand and even give tips to the user to immediately remember the concept.";
+    public String generateFlashcards(@RequestBody String lessonText, @PathVariable int deckId) {
+        VertexAI vertexAi = null;
+        try {
+            vertexAi = new VertexAI("savvy-depot-423506-j9", "us-central1");
 
-        // Escape special characters in the lessonText and systemPrompt
-        lessonText = lessonText.replace("\n", "\\n").replace("\"", "\\\"");
-        systemPrompt = systemPrompt.replace("\n", "\\n").replace("\"", "\\\"");
+            GenerationConfig generationConfig =
+                    GenerationConfig.newBuilder()
+                            .setMaxOutputTokens(8192)
+                            .setTemperature(1F)
+                            .setTopP(0.95F)
+                            .build();
+            List<SafetySetting> safetySettings = Arrays.asList(
+                    SafetySetting.newBuilder()
+                            .setCategory(HarmCategory.HARM_CATEGORY_HATE_SPEECH)
+                            .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE)
+                            .build(),
+                    SafetySetting.newBuilder()
+                            .setCategory(HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT)
+                            .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE)
+                            .build(),
+                    SafetySetting.newBuilder()
+                            .setCategory(HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT)
+                            .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE)
+                            .build(),
+                    SafetySetting.newBuilder()
+                            .setCategory(HarmCategory.HARM_CATEGORY_HARASSMENT)
+                            .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE)
+                            .build()
+            );
 
-        // Prepare the API request body
-        String requestBody = "{\n" +
-                "  \"contents\": [\n" +
-                "    {\n" +
-                "      \"parts\": [{ \"text\": \"" + systemPrompt + "\\n" + lessonText + "\" }]\n" +
-                "    }\n" +
-                "  ]\n" +
-                "}";
+            String systemInstructionText = "You are to create flashcard pairs (question and answer, in json format if possible) " +
+                    "based on the given lesson texts to help the student user review and ace his/her exams. " +
+                    "design it in a way that when the user reads the question/flashcardfront, s/he has idea of whats the answer/flashcardback. " +
+                    " the use of the flashcards is to help the user understand and not memorize the lesson." +
+                    "make the answers/flashcardback easier to understand and even give tips to the user to immediately remember the concept.";
 
-        // Create headers and set the content type
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            Content systemInstruction = ContentMaker.fromMultiModalData(systemInstructionText);
 
-        // Build the request entity
-        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+            GenerativeModel model = new GenerativeModel.Builder()
+                    .setModelName("gemini-1.5-flash-001")
+                    .setVertexAi(vertexAi)
+                    .setGenerationConfig(generationConfig)
+                    .setSafetySettings(safetySettings)
+                    .setSystemInstruction(systemInstruction)
+                    .build();
 
-        // Create the RestTemplate and make the API call
-        RestTemplate restTemplate = new RestTemplate();
-        String geminiUrl = geminiApiUrl + "?key=" + geminiApiKey;
+            Content content = ContentMaker.fromMultiModalData(lessonText);
+            ResponseStream<GenerateContentResponse> responseStream = model.generateContentStream(content);
 
-        ResponseEntity<String> responseEntity = restTemplate.exchange(geminiUrl, HttpMethod.POST, requestEntity, String.class);
-        String responseBody = responseEntity.getBody();
+            // Collect and concatenate the text parts, ensuring it starts and ends with square brackets
+            String result = responseStream.stream()
+                    .flatMap(response -> response.getCandidatesList().stream())
+                    .flatMap(candidate -> candidate.getContent().getPartsList().stream())
+                    .map(Part::getText)
+                    .collect(Collectors.joining());
 
-        // Strip any backticks from the response body
-        responseBody = responseBody.replaceAll("```json|```", "").trim();
+            // Remove enclosing backticks
+            result = result.replaceAll("```json|```", "").trim();
 
-        // Check if responseBody is empty or incomplete
-        if (responseBody == null || responseBody.isEmpty()) {
-            throw new RuntimeException("Received empty response from the API");
-        }
+            // Save the flashcards to the database
+            saveFlashcards(result, deckId);
 
-        // Parse the API response
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode geminiData = objectMapper.readTree(responseBody);
-
-        // Validate that the response contains the expected structure
-        JsonNode candidates = geminiData.path("candidates");
-        if (!candidates.isArray() || candidates.size() == 0) {
-            throw new RuntimeException("Invalid or empty candidates array in the response");
-        }
-
-        // Extract the content part of the first candidate
-        String apiResponse = candidates.get(0).path("content").path("parts").get(0).path("text").asText();
-
-        // Split the API response into individual sentences (flashcard pairs)
-        List<String> generatedSentences = apiResponse.lines()
-                .filter(line -> !line.trim().isEmpty())
-                .collect(Collectors.toList());
-
-        // Save the flashcards to the database
-        saveFlashcards(generatedSentences, deckId);
-
-        return "Flashcards generated and saved successfully.";
-    } catch (Exception e) {
-        e.printStackTrace();
-        return "Error occurred: " + e.getMessage();
-    }
-}
-
-private void saveFlashcards(List<String> generatedSentences, int deckId) throws IOException {
-        FlashcardDeck flashcardDeck = flashcardDeckRepository.findById(deckId)
-                .orElseThrow(() -> new RuntimeException("Deck not found"));
-    
-        ObjectMapper objectMapper = new ObjectMapper();
-    
-        for (String sentence : generatedSentences) {
-            // Check if sentence is a valid JSON object (ignore arrays and other invalid data)
-            if (sentence.trim().startsWith("{") && sentence.trim().endsWith("}")) {
-                try {
-                    // Parse each sentence as a JSON object
-                    JsonNode flashcardNode = objectMapper.readTree(sentence);
-    
-                    if (flashcardNode.has("question") && flashcardNode.has("answer")) {
-                        String question = flashcardNode.get("question").asText();
-                        String answer = flashcardNode.get("answer").asText();
-    
-                        // Save the flashcard to the deck
-                        Flashcard flashcard = new Flashcard(question, answer, flashcardDeck);
-                        flashcardRepository.save(flashcard);
-                    } else {
-                        System.out.println("Invalid flashcard format: missing 'question' or 'answer'. " + sentence);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Failed to parse flashcard: " + sentence);
-                    e.printStackTrace();
-                }
-            } else {
-                // Log invalid JSON data for further debugging
-                System.out.println("Invalid JSON format for flashcard: " + sentence);
+            return "Flashcards generated and saved successfully.";
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Error occurred: " + e.getMessage();
+        } finally {
+            if (vertexAi != null) {
+                vertexAi.close();
             }
         }
     }
-    
+
+    private void saveFlashcards(String jsonResponse, int deckId) throws IOException {
+        FlashcardDeck flashcardDeck = flashcardDeckRepository.findById(deckId)
+                .orElseThrow(() -> new RuntimeException("Deck not found"));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode flashcardsNode = objectMapper.readTree(jsonResponse);
+
+        for (Iterator<JsonNode> it = flashcardsNode.elements(); it.hasNext(); ) {
+            JsonNode flashcardNode = it.next();
+            String question = flashcardNode.get("question").asText();
+            String answer = flashcardNode.get("answer").asText();
+
+            Flashcard flashcard = new Flashcard(question, answer, flashcardDeck);
+            flashcardRepository.save(flashcard);
+        }
+    }
 }
