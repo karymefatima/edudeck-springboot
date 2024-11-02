@@ -10,7 +10,8 @@ import com.it332.edudeck.Entity.User;
 import com.it332.edudeck.Service.UserService;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+// @CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "https://edudeck.vercel.app"})
 public class RegistrationController {
     
     @Autowired
