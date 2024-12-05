@@ -27,6 +27,22 @@ public class FlashcardDeckController {
         return ResponseEntity.ok(createdDeck);
     }
 
+    // New method for manual deck creation
+    @PostMapping("/createManualDeck")
+    public ResponseEntity<FlashcardDeck> createManualDeck(@RequestBody FlashcardDeck flashcardDeck) {
+        // Ensure no document is attached to manually created decks
+        if (flashcardDeck.getDocument() != null) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        FlashcardDeck createdDeck = flashcardDeckService.createFlashcardDeck(
+            flashcardDeck.getTitle(), 
+            flashcardDeck.getUser(), 
+            null // Explicitly pass null for document
+        );
+        return ResponseEntity.ok(createdDeck);
+    }
+
     @GetMapping("/getAllFlashcardDecks")
     public ResponseEntity<List<FlashcardDeck>> getAllFlashcardDecks() {
         return ResponseEntity.ok(flashcardDeckService.getAllFlashcardDecks());
